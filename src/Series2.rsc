@@ -2,6 +2,8 @@ module Series2
 
 extend javascript::Syntax;
 import List;
+import ParseTree;
+import Type;
 
 syntax Statement
   = "swap" Id "," Id ";"
@@ -28,8 +30,13 @@ keyword Keywords = "swap" | "test" | "foreach";
  * 1. Swap: "swap" Id "," Id ";"
  */
   
-Statement desugar((Statement)`swap <Id x>, <Id y>;`)
-  = /* you should replace this */ dummyStat();
+Statement desugar((Statement)`swap <Id x>, <Id y>;`) {
+	return (Statement)`(function() {
+					  '   var tmp = <Id x>;
+					  '   <Id x> = <Id y>;
+					  '   <Id y> = tmp;
+					  '})();`;
+}
 
 test bool testSwap()
   = desugar((Statement)`swap x, y;`)
@@ -43,8 +50,14 @@ test bool testSwap()
  * 2. Test: "test" Expression "should" "be" Expression ";"
  */
 
-Statement desugar((Statement)`test <Expression x> should be <Expression y>;`)
-  = /* you should replace this */ dummyStat();
+Statement desugar((Statement)`test <Expression x> should be <Expression y>;`) {
+	return (Statement)`(function(actual, expected) { 
+  			    '   if (actual !== expected) {
+  			    '     console.log("Test failed; expected: " + expected + "; got: " + actual);    
+  			    '   }
+  			    '})(<Expression x>, <Expression y>);`;
+}
+
   
 test bool testTest()
   = desugar((Statement)`test 3 * 3 should be 9;`)
@@ -60,7 +73,12 @@ test bool testTest()
  
   
 Statement desugar((Statement)`foreach (var <Id x> in <Expression e>) <Statement s>`)
-  = /* you should replace this */ dummyStat();
+  = (Statement)`(function(arr) {
+  			   '   for (var i = 0; i \< arr.length; i++) {
+  			   '     var <Id x> = arr[i];
+  			   '     <Statement s>
+  			   '   }
+  			   '})(<Expression e>);`;
   
 
 test bool testForeach()
@@ -77,8 +95,14 @@ test bool testForeach()
  */
  
 
-Expression desugar((Expression)`<Id param> =\> <Expression body>`)
-  = /* you should replace this */ dummyExp();
+Expression desugar((Expression)`<Id param> =\> <Expression body>`) {
+	Expression body2 = replaceThis(body);
+	return (Expression)`(function (_this) {
+                '   return function (<Id param>) {
+                '      return <Expression body2>;
+                '   };
+                '})(this)`;
+}
 
 Expression replaceThis(Expression e) {
   return top-down-break visit (e) {
@@ -110,9 +134,28 @@ test bool testArrowWithThis()
  */
  
 Expression desugar((Expression)`[ <Expression r> | <{Generator ","}+ gens> ]`) {
-	return /* you should replace this */ dummyExp();
+	list[Generator] generators = [g | g <- gens];
+	Generator first = head(generators);
+	Expression enumerator = typeCast((Expression), first);
+	Statement output = (Statement)`console.log(elem);`;
+	Statement fortest = (Statement)`foreach ( var enum in arr ) console.log(enum);`;
+	Statement forloop = forEach(enumerator, output);	
+	Expression e = (Expression)`(function() {
+					   '	var result = [];
+					   '	{
+					   '		var l = <Expression first>;
+					   '	}
+					   '	return 0;
+					   '})()`;
+	return e;
 } 
- 
+
+Statement forEach(Expression enumeration, Statement body) {
+	Statement f = (Statement)`foreach (<Expression enumeration>) <Statement body>`;
+	return desugar(f);
+}
+  
+
 Expression dummyExp() = (Expression)`NOT_YET_IMPLEMENTED`;
 Statement dummyStat() = (Statement)`NOT_YET_IMPLEMENTED;`;
 
