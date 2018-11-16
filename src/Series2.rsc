@@ -3,7 +3,7 @@ module Series2
 extend javascript::Syntax;
 import List;
 import ParseTree;
-import Type;
+import IO;
 
 syntax Statement
   = "swap" Id "," Id ";"
@@ -97,6 +97,7 @@ test bool testForeach()
 
 Expression desugar((Expression)`<Id param> =\> <Expression body>`) {
 	Expression body2 = replaceThis(body);
+	println(body2);
 	return (Expression)`(function (_this) {
                 '   return function (<Id param>) {
                 '      return <Expression body2>;
@@ -136,7 +137,7 @@ test bool testArrowWithThis()
 Expression desugar((Expression)`[ <Expression r> | <{Generator ","}+ gens> ]`) {
 	list[Generator] generators = [g | g <- gens];
 	Generator first = head(generators);
-	Expression enumerator = typeCast((Expression), first);
+	Expression enumerator = typeCast(#Expression, first);
 	Statement output = (Statement)`console.log(elem);`;
 	Statement fortest = (Statement)`foreach ( var enum in arr ) console.log(enum);`;
 	Statement forloop = forEach(enumerator, output);	
