@@ -135,21 +135,35 @@ test bool testArrowWithThis()
  */
  
 Expression desugar((Expression)`[ <Expression r> | <{Generator ","}+ gens> ]`) {
-	list[Generator] generators = [g | g <- gens];
-	Generator first = head(generators);
-	Expression enumerator = typeCast(#Expression, first);
-	Statement output = (Statement)`console.log(elem);`;
-	Statement fortest = (Statement)`foreach ( var enum in arr ) console.log(enum);`;
-	Statement forloop = forEach(enumerator, output);	
-	Expression e = (Expression)`(function() {
-					   '	var result = [];
-					   '	{
-					   '		var l = <Expression first>;
-					   '	}
-					   '	return 0;
-					   '})()`;
-	return e;
-} 
+  Statement body = evaluateComprehension(r, gens);
+  return (Expression)`(function(){
+  				'  var result = []; 
+  				'  <Statement body> 
+  				'  return result;
+  				'})()`;    
+}
+
+Statement evaluateComprehension(Expression r, {Generator ","}+ gens) {
+  Statement accumulator = (Statement)`result.push(<Expression r>);`;
+  list[Generator] reverseGens = reverse([g | g <- gens]);
+  for (gen <- reverseGens) {
+  	accumulator = generatorPattern(accumulator, gen);
+  }
+  return accumulator;
+}
+
+Statement generatorPattern(Statement inner, (Generator)`<Expression cond>`)
+  = (Statement)`if (<Expression cond>) <Statement inner>`;
+  
+Statement generatorPattern(Statement inner, (Generator)`var <Id x> in <Expression arr>`)
+// need the extra opening and closing bracket, or it will not be recognised by the Syntax.rsc file
+  = (Statement)`{
+  			   '    var coll = <Expression arr>;
+               '    for (var i = 0; i \< coll.length; i++) {
+               '      var <Id x> = coll[i]; 
+               '      <Statement inner>
+               '    }
+               '  }`;
 
 Statement forEach(Expression enumeration, Statement body) {
 	Statement f = (Statement)`foreach (<Expression enumeration>) <Statement body>`;
